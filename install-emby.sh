@@ -9,9 +9,11 @@
 VERSION=0.8
 EMBY_HOME=/opt/mediabrowser
 EMBY_NEW=/opt/mediabrowser.new
-EMBY_NEW=/opt/mediabrowser.old
+EMBY_OLD=/opt/mediabrowser.old
 PID_FILE=$EMBY_HOME/mediabrowser.pid
 MONO_DIR=/usr/bin
+URL_SCRIPT=https://raw.githubusercontent.com/KiLMaN/osmc_install_emby/master/install-emby.sh
+
 
 # ==================================================================
 # First function of script!  DO NOT CHANGE PLACEMENT!!
@@ -22,7 +24,7 @@ function update_script()
 	title "Upgrading Emby installation script..."
 	# ==================================================================
 	# retrieve the latest version of the script from GitHub:
-	wget --no-check-certificate -w 4 -O $HOME_DIR/install-emby.sh.1 https://raw.githubusercontent.com/douglasorend/osmc_install_emby/master/install-emby.sh 2>&1 | grep --line-buffered -oP "(\d+(\.\d+)?(?=%))" | dialog --ascii-lines --title "Downloading latest version of Emby Server script" --gauge "\nPlease wait...\n"  11 70
+	wget --no-check-certificate -w 4 -O $HOME_DIR/install-emby.sh.1 $URL_SCRIPT 2>&1 | grep --line-buffered -oP "(\d+(\.\d+)?(?=%))" | dialog --ascii-lines --title "Downloading latest version of Emby Server script" --gauge "\nPlease wait...\n"  11 70
 	chmod +x $HOME_DIR/install-emby.sh.1
 	mv $HOME_DIR/install-emby.sh.1 $HOME_DIR/install-emby.sh
 	if [[ -f $EMBY_HOME/install-emby.sh ]]; then
@@ -190,7 +192,7 @@ function install_emby()
 	else
 		find_latest_stable
 	fi
-	wget --no-check-certificate -w 4 http://github.com$file -O /tmp/Emby.Mono.zip 2>&1 | grep --line-buffered -oP "(\d+(\.\d+)?(?=%))" | dialog --ascii-lines --title "Downloading Emby Server v$latest" --gauge "\nPlease wait...\n"  11 70
+	wget --no-check-certificate -w 4 http://github.com$file -O /tmp/Emby.Mono.zip 2>&1 | grep --line-buffered -oP "(\d+(\.\d+)?(?=%))" | dialog --ascii-lines --title "Downloading Emby Server v$LATEST_VER" --gauge "\nPlease wait...\n"  11 70
 	sudo unzip -o /tmp/Emby.Mono.zip -d $EMBY_NEW
 	rm /tmp/Emby.Mono.zip
 	BRANCH=$(sudo echo $BRANCH | sudo tee $EMBY_NEW/mediabrowser.branch)
@@ -216,6 +218,7 @@ function create_service()
 	echo "" >> /tmp/emby
 	echo "PIDFILE=\"$PID_FILE\"" >> /tmp/emby
 	echo "EXEC=\"$EMBY_HOME/MediaBrowser.Server.Mono.exe -ffmpeg /usr/local/share/man/man1/ffmpeg.1 -ffprobe /usr/local/share/man/man1/ffprobe.1\"" >> /tmp/emby
+	echo "USER=root" >> /tmp/emby
 	echo "" >> /tmp/emby
 	echo "if [[ -d $EMBY_NEW ]]; then" >> /tmp/emby
 	echo "  sudo rm -R $EMBY_OLD" >> /tmp/emby
@@ -227,18 +230,18 @@ function create_service()
 	echo "case \"\$1\" in" >> /tmp/emby
 	echo "	start)" >> /tmp/emby
 	echo "		echo \"Starting Emby server...\"" >> /tmp/emby
-	echo "		sudo start-stop-daemon -S -m -p \$PIDFILE -b -x $MONO_DIR/mono -- \${EXEC}" >> /tmp/emby
+	echo "		sudo start-stop-daemon --chuid $USER -S -m -p \$PIDFILE -b -x $MONO_DIR/mono -- \${EXEC}" >> /tmp/emby
 	echo "		;;" >> /tmp/emby
 	echo "  stop)" >> /tmp/emby
 	echo "		echo \"Stopping Emby server...\"" >> /tmp/emby
-	echo "	  	sudo start-stop-daemon -K -p \${PIDFILE} && sudo rm $PID_FILE" >> /tmp/emby
+	echo "	  	sudo start-stop-daemon --chuid $USER -K -p \${PIDFILE} && sudo rm $PID_FILE" >> /tmp/emby
 	echo "		;;" >> /tmp/emby
 	echo "  restart|force_reload)" >> /tmp/emby
 	echo "		echo \"Stopping Emby server...\"" >> /tmp/emby
-	echo "		sudo start-stop-daemon -K -p \${PIDFILE} && sudo rm $PID_FILE" >> /tmp/emby
+	echo "		sudo start-stop-daemon --chuid $USER -K -p \${PIDFILE} && sudo rm $PID_FILE" >> /tmp/emby
 	echo "		sleep 3" >> /tmp/emby
 	echo "		echo \"Starting Emby server...\"" >> /tmp/emby
-	echo "		sudo start-stop-daemon -S -m -p \$PIDFILE -b -x $MONO_DIR/mono -- \${EXEC}" >> /tmp/emby
+	echo "		sudo start-stop-daemon --chuid $USER -S -m -p \$PIDFILE -b -x $MONO_DIR/mono -- \${EXEC}" >> /tmp/emby
 	echo "    ;;" >> /tmp/emby
 	echo "  *)" >> /tmp/emby
 	echo "    echo \"Usage: /etc/init.d/emby {start|stop|restart|force_reload}\"" >> /tmp/emby
